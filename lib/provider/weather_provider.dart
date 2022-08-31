@@ -1,7 +1,8 @@
 import 'dart:convert';
-
+import 'package:geocoding/geocoding.dart' as Geo;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:weather_app/models/current_response_model.dart';
 import 'package:weather_app/models/forecast_response_model.dart';
 import 'package:weather_app/utils/constants.dart';
@@ -13,11 +14,14 @@ class WeatherProvider extends ChangeNotifier {
   double latitude = 0, longitude = 0;
 
   String unit = 'metric';
+  String unitSymbol = celsius;
 
 // 2ta not null hole  return korbe true r data chole asle notifylistner call hobe abong data update pabo
   // hasDataLoaded er upor nirvor kore amra weatherpage e ki data show korbo ta nirvor korbe
   bool get hasDataLoaded =>
       currentResponseModel != null && forecastResponseModel != null;
+
+  bool get isFahrenheit => unit == imperial;
 
   // setNewLocation by calling geolocator and getting the current position and assigning latitude and longitude from there
   void setNewLocation(double lat, double lng) {
@@ -28,9 +32,30 @@ class WeatherProvider extends ChangeNotifier {
   // 2ta private method akta method e rekhe call korlam
   // 2ta method identical sudhu api r model class ta different
   // 2ta method call korar madhome CurrentData r ForecastData niye asbe abong currenResponseModel ar forecastResponseModel e save korbe abong notifylistner call kore dibo kaj ses
-  getWeatherDate() {
+  getWeatherData() {
     _getCurrentData();
     _getForecastData();
+  }
+
+// ai method er kaj hoche variable er value change kora
+  void setTempUnit(bool tag) {
+    unit = tag ? imperial : metric;
+    unitSymbol = tag ? fahrenheit : celsius;
+    notifyListeners();
+  }
+
+  Future<bool> setPreferenceTemUnitValue(bool tag) async {
+    // singalton object jodi agertheke create kora na thake tahole object create korbe nahoi ager file tai use korbe
+    final pref = await SharedPreferences.getInstance();
+    // key value pair akare save korte hoi
+    return pref.setBool('unit', tag);
+  }
+
+  Future<bool> getPreferenceTempUnitValue() async {
+    final pref = await SharedPreferences.getInstance();
+    // get null return korte pare jodi null return kore tahole amra false return korbo
+    // porthome user app open  korar somoy  set korar age get korar chesta korbe tokhon value null thakbe r tai false return korbe
+    return pref.getBool('unit') ?? false;
   }
 
   void _getCurrentData() async {
@@ -77,6 +102,24 @@ class WeatherProvider extends ChangeNotifier {
       }
     } catch (error) {
       rethrow;
+    }
+  }
+
+// 2ta error aste pare user abcd type korse kono city ase nai
+// arekta jinis hote pare user city dise kintu setar let long khute pai nai
+  void convertAddressToLatLng(String result) async {
+    try {
+      final locationList = await Geo.locationFromAddress(result);
+      if (locationList.isNotEmpty) {
+        final location = locationList.first;
+        setNewLocation(location.latitude, location.longitude);
+        getWeatherData();
+      } else {
+        // list empty hole city not found
+        print('City not found');
+      }
+    } catch (error) {
+      print(error.toString());
     }
   }
 }

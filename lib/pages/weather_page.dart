@@ -1,5 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
+import 'package:weather_app/pages/settings_page.dart';
 import 'package:weather_app/provider/weather_provider.dart';
 import 'package:weather_app/utils/constants.dart';
 import 'package:weather_app/utils/helper_function.dart';
@@ -18,6 +23,8 @@ class _WeatherPageState extends State<WeatherPage> {
   late WeatherProvider provider;
   bool isFirst = true;
 
+  Timer? timer;
+
   @override
   void didChangeDependencies() {
     if (isFirst) {
@@ -30,11 +37,44 @@ class _WeatherPageState extends State<WeatherPage> {
     super.didChangeDependencies();
   }
 
-  _getData() {
-    determinePosition().then((position) {
-      provider.setNewLocation(position.latitude, position.longitude);
-      provider.getWeatherDate();
+  _startTimer() {
+    timer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+      print('timer started');
+      final isOn = await Geolocator.isLocationServiceEnabled();
+      if (isOn) {
+        _stopTimer();
+        _getData();
+      }
     });
+  }
+
+  _stopTimer() {
+    if (timer != null) {
+      timer!.cancel();
+    }
+  }
+
+  _getData() async {
+    final isLocationEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!isLocationEnabled) {
+      showMsgWithAction(
+          context: context,
+          msg: 'Please turn on location',
+          callback: () async {
+            _startTimer();
+            final status = await Geolocator.openLocationSettings();
+            print(status);
+          });
+      return;
+    }
+    try {
+      final position = await determinePosition();
+      provider.setNewLocation(position.latitude, position.longitude);
+      provider.setTempUnit(await provider.getPreferenceTempUnitValue());
+      provider.getWeatherData();
+    } catch (error) {
+      rethrow;
+    }
   }
 
   @override
@@ -46,9 +86,26 @@ class _WeatherPageState extends State<WeatherPage> {
         elevation: 0,
         title: const Text('Weather'),
         actions: [
-          IconButton(onPressed: () {}, icon: const Icon(Icons.my_location)),
-          IconButton(onPressed: () {}, icon: const Icon(Icons.search)),
-          IconButton(onPressed: () {}, icon: const Icon(Icons.settings))
+          IconButton(
+              onPressed: () {
+                _getData();
+              },
+              icon: const Icon(Icons.my_location)),
+          IconButton(
+              onPressed: () async {
+                // search page theke ber howar por result back dibe aita empty o hote pare datePicker er moto
+                final result = await showSearch(
+                    context: context, delegate: _CitySearchDelegate());
+                if (result != null && result.isNotEmpty) {
+                  provider.convertAddressToLatLng(result);
+                  print(result);
+                }
+              },
+              icon: const Icon(Icons.search)),
+          IconButton(
+              onPressed: () =>
+                  Navigator.pushNamed(context, SettingsPage.routeName),
+              icon: const Icon(Icons.settings))
         ],
       ),
       body: Center(
@@ -93,7 +150,7 @@ class _WeatherPageState extends State<WeatherPage> {
                 fit: BoxFit.cover,
               ),
               Text(
-                '${response.main!.temp!.round()}$degree$celsius',
+                '${response.main!.temp!.round()}$degree${provider.unitSymbol}',
                 style: txtTempBig80,
               )
             ],
@@ -102,7 +159,7 @@ class _WeatherPageState extends State<WeatherPage> {
         Wrap(
           children: [
             Text(
-              'feels like ${response.main!.feelsLike!.round()}$degree$celsius',
+              'feels like ${response.main!.feelsLike!.round()}$degree${provider.unitSymbol}',
               style: txtNormal16,
             ),
             const SizedBox(
@@ -146,14 +203,14 @@ class _WeatherPageState extends State<WeatherPage> {
         Wrap(
           children: [
             Text(
-              'Sunrise ${getFormattedDateTime(response.sys!.sunrise!, 'hh:mm a')}%',
+              'Sunrise ${getFormattedDateTime(response.sys!.sunrise!, 'hh:mm a')}',
               style: txtNormal16,
             ),
             const SizedBox(
               width: 10,
             ),
             Text(
-              'Sunset ${getFormattedDateTime(response.sys!.sunset!, 'hh:mm a')}%',
+              'Sunset ${getFormattedDateTime(response.sys!.sunset!, 'hh:mm a')}',
               style: txtNormal16,
             ),
             Text('Visibility ${response.visibility}meter',
@@ -168,6 +225,90 @@ class _WeatherPageState extends State<WeatherPage> {
   }
 
   Widget _forecastWeatherSection() {
-    return Center();
+    return SizedBox(
+        // height: 200,
+        // child: ListView.builder(
+        //     itemCount: provider.forecastResponseModel!.list!.length,
+        //     itemBuilder: (context, index) {
+        //       final forcastResponse = provider.forecastResponseModel;
+        //       return Expanded(
+        //         child: ListTile(
+        //           leading: Row(
+        //             children: [
+        //               // Expanded(
+        //               //   child: Text(getFormattedDateTime(
+        //               //       forcastResponse!.list![index].dt!, 'EEE, MMM d')),
+        //               // )
+        //             ],
+        //           ),
+        //           trailing: Text(
+        //             forcastResponse!.list![index].weather![0].description!,
+        //             style: txtNormal16,
+        //           ),
+        //         ),
+        //       );
+        //     }),
+        );
+  }
+}
+
+// porthome city list er filter list banate hobe karon user jeta match korabe city setar shate match koriye konta konta show korabo
+// query field ta SearchDelegate parent class theke asche
+// query hoche getter method ja apnake akta string return kore user jeta type korbe seta
+class _CitySearchDelegate extends SearchDelegate<String> {
+  @override
+  List<Widget>? buildActions(BuildContext context) {
+    return [
+      IconButton(
+          onPressed: () {
+            // cross click korle query ba empty kore dilam
+            query = '';
+          },
+          icon: const Icon(Icons.clear)),
+    ];
+  }
+
+  @override
+  Widget? buildLeading(BuildContext context) {
+    // TODO: implement buildLeading
+    return IconButton(
+        onPressed: () {
+          // searchDelegate er method hoche close, click korle close hoye jabe
+          close(context, '');
+        },
+        icon: const Icon(Icons.arrow_back));
+  }
+
+  @override
+  Widget buildResults(BuildContext context) {
+    // user jeta type  korche seta list e nai tarpor search icon e click korse tai result ta kichu khon dekhabe
+    return ListTile(
+      leading: Icon(Icons.search),
+      title: Text(query),
+      onTap: () {
+        close(context, query);
+      },
+    );
+  }
+
+  @override
+  Widget buildSuggestions(BuildContext context) {
+    // je city gulo  ache seta jodi  query er shate match kore tahole seguloke niye list e convert kore filterdList e rakhe dibo
+    final filteredList = query.isEmpty
+        ? cities
+        : cities
+            .where((city) => city.toLowerCase().startsWith(query.toLowerCase()))
+            .toList();
+    return ListView.builder(
+        itemCount: filteredList.length,
+        itemBuilder: (context, index) => ListTile(
+              title: Text(filteredList[index]),
+              onTap: () {
+                // user jodi filteredList theke tar city pai tahole query er vitore city ta rekhe dichi
+                query = filteredList[index];
+                // ar tar por search dialogue ta close kore dichi
+                close(context, query);
+              },
+            ));
   }
 }
