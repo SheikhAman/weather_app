@@ -80,7 +80,7 @@ class _WeatherPageState extends State<WeatherPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.blueGrey.shade900,
+      backgroundColor: Color(0xff1b0050),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -132,7 +132,8 @@ class _WeatherPageState extends State<WeatherPage> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          getFormattedDateTime(response!.dt!, 'MMM dd yyyy'),
+          // getFormattedDateTime(response!.dt!, 'MMM dd yyyy'),
+          getFormattedDate(response!.dt!, "dd/MM/yyyy"),
           style: txtDateHeader18,
         ),
         Text(
@@ -286,7 +287,7 @@ class _WeatherPageState extends State<WeatherPage> {
                 height: 220,
                 width: 135,
                 decoration: BoxDecoration(
-                    color: Theme.of(context).primaryColor.withOpacity(0.4),
+                    color: Color(0xff3f2786).withOpacity(0.9),
                     borderRadius: BorderRadius.circular(15)),
               );
             },
