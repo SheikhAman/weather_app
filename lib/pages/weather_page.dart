@@ -203,14 +203,14 @@ class _WeatherPageState extends State<WeatherPage> {
         Wrap(
           children: [
             Text(
-              'Sunrise ${getFormattedDateTime(response.sys!.sunrise!, 'hh:mm a')}',
+              'Sunrise ${getFormattedTime(response.sys!.sunrise!, 'hh:mm:ss')}',
               style: txtNormal16,
             ),
             const SizedBox(
               width: 10,
             ),
             Text(
-              'Sunset ${getFormattedDateTime(response.sys!.sunset!, 'hh:mm a')}',
+              'Sunset ${getFormattedTime(response.sys!.sunset!, 'hh:mm:ss')}',
               style: txtNormal16,
             ),
             Text('Visibility ${response.visibility}meter',
