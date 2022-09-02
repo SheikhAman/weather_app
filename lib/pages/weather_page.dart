@@ -225,30 +225,75 @@ class _WeatherPageState extends State<WeatherPage> {
   }
 
   Widget _forecastWeatherSection() {
-    return SizedBox(
-        // height: 200,
-        // child: ListView.builder(
-        //     itemCount: provider.forecastResponseModel!.list!.length,
-        //     itemBuilder: (context, index) {
-        //       final forcastResponse = provider.forecastResponseModel;
-        //       return Expanded(
-        //         child: ListTile(
-        //           leading: Row(
-        //             children: [
-        //               // Expanded(
-        //               //   child: Text(getFormattedDateTime(
-        //               //       forcastResponse!.list![index].dt!, 'EEE, MMM d')),
-        //               // )
-        //             ],
-        //           ),
-        //           trailing: Text(
-        //             forcastResponse!.list![index].weather![0].description!,
-        //             style: txtNormal16,
-        //           ),
-        //         ),
-        //       );
-        //     }),
-        );
+    final response = provider.forecastResponseModel;
+    return Column(
+      children: [
+        SizedBox(
+          height: 20,
+        ),
+        Text(
+          "Forecast Weather",
+          style: TextStyle(
+              fontWeight: FontWeight.w500,
+              fontSize: 18,
+              color: Colors.white,
+              letterSpacing: 1,
+              wordSpacing: 1),
+        ),
+        SizedBox(
+          height: 10,
+        ),
+        SizedBox(
+          height: 220,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: response!.list!.length,
+            itemBuilder: (context, index) {
+              final model = response.list![index];
+
+              return Container(
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    Text(
+                      getFormattedDate(
+                        model.dt!,
+                        "pattern",
+                      ),
+                      style: TextStyle(color: Colors.white, fontSize: 13),
+                    ),
+                    Text(
+                      getFormattedTime(model.dt!, "pattern"),
+                      style: TextStyle(color: Colors.white, fontSize: 13),
+                    ),
+                    Image.network(
+                      "$iconPrefix${model.weather![0].icon}$iconSuffix",
+                      color: Colors.amber,
+                      height: 80,
+                    ),
+                    Text(
+                        "${model.main!.temp!.round()}$degree${provider.unitSymbol}",
+                        style: TextStyle(color: Colors.white)),
+                    Text("${model.weather![0].description}",
+                        style: TextStyle(color: Colors.white, fontSize: 13)),
+                    Text(
+                        "${model.main!.tempMin!.round()}$degree${provider.unitSymbol} / ${model.main!.tempMax!.round()}$degree${provider.unitSymbol}",
+                        style: TextStyle(color: Colors.white, fontSize: 13)),
+                  ],
+                ),
+                margin: EdgeInsets.all(5),
+                height: 220,
+                width: 135,
+                decoration: BoxDecoration(
+                    color: Theme.of(context).primaryColor.withOpacity(0.4),
+                    borderRadius: BorderRadius.circular(15)),
+              );
+            },
+          ),
+        )
+      ],
+    );
   }
 }
 
